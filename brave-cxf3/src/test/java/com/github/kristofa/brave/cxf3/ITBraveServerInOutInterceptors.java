@@ -7,6 +7,8 @@ import com.github.kristofa.brave.http.SpanNameProvider;
 import java.io.IOException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import org.apache.cxf.endpoint.Server;
 import org.apache.cxf.jaxrs.JAXRSServerFactoryBean;
@@ -16,6 +18,14 @@ import org.junit.Test;
 
 public class ITBraveServerInOutInterceptors extends ITHttpServer {
   @Override @Test public void reportsSpanOnTransportException() throws Exception {
+    throw new AssumptionViolatedException("TODO: unhandled synchronous exception mapping");
+  }
+
+  @Override @Test public void addsErrorTagOnTransportException() throws Exception {
+    throw new AssumptionViolatedException("TODO: error tagging");
+  }
+
+  @Override @Test public void addsErrorTagOnTransportException_async() throws Exception {
     throw new AssumptionViolatedException("TODO: error tagging");
   }
 
@@ -61,9 +71,27 @@ public class ITBraveServerInOutInterceptors extends ITHttpServer {
     }
 
     @GET
+    @Path("childAsync")
+    public void childAsync(@Suspended AsyncResponse response) throws IOException {
+      new Thread(() -> {
+        localTracer.startNewSpan("child", "child");
+        localTracer.finishSpan();
+        response.resume(Response.status(200).build());
+      }).start();
+    }
+
+    @GET
     @Path("disconnect")
     public Response disconnect() throws IOException {
       throw new IOException();
+    }
+
+    @GET
+    @Path("disconnectAsync")
+    public void disconnectAsync(@Suspended AsyncResponse response) throws IOException {
+      new Thread(() ->{
+        response.resume(new IOException());
+      }).start();
     }
   }
 
